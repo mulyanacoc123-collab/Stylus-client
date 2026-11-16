@@ -44,7 +44,7 @@ class StylusDisplayView @JvmOverloads constructor(
         val old = frameBitmap
         frameBitmap = null
         invalidate()
-        if (old != null && old !== bitmap && !old.isRecycled) {
+        if (old != null && !old.isRecycled) {
             try { old.recycle() } catch (_: Exception) { }
         }
     }
