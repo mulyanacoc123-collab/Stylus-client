@@ -16,6 +16,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
@@ -31,6 +32,7 @@ class MainActivity : Activity() {
     private lateinit var displayView: StylusDisplayView
     private lateinit var ipInput: EditText
     private lateinit var tokenInput: EditText
+    private lateinit var resolutionSpinner: Spinner
     private lateinit var qualitySpinner: Spinner
     private lateinit var fpsSpinner: Spinner
     private lateinit var statusText: TextView
@@ -56,9 +58,9 @@ class MainActivity : Activity() {
             android.os.Process.killProcess(android.os.Process.myPid())
         }
 
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        // Rotasi fleksibel mengikuti orientasi perangkat user
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
 
-        // Root Layout
         val root = FrameLayout(this).apply {
             setBackgroundColor(Color.parseColor("#121212"))
         }
@@ -78,110 +80,135 @@ class MainActivity : Activity() {
             }
         }
 
+        // Bungkus dengan ScrollView agar tidak terpotong di layar tablet kecil/menengah
+        val scrollView = ScrollView(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            isFillViewport = true
+        }
+
         connectPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(64, 24, 64, 24)
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(48, 24, 48, 24)
+            setBackgroundColor(Color.parseColor("#1E1E1E")) // Latar agak terang agar kontras
         }
 
         val titleText = TextView(this).apply {
-            text = "StylusClient - Note 10.1 P601"
-            textSize = 20f
-            setTextColor(Color.WHITE)
+            text = "StylusClient - Pengaturan & Koneksi"
+            textSize = 18f
+            setTextColor(Color.parseColor("#E0E0E0"))
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 16)
         }
 
-        // Input IP Hotspot
+        // Input IP Hotspot dengan teks putih dan background kontras
         ipInput = EditText(this).apply {
             hint = "IP Hotspot HP (contoh: 192.168.43.1)"
             textSize = 16f
             setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
-            setBackgroundColor(Color.parseColor("#222222"))
-            setPadding(20, 16, 20, 16)
+            setHintTextColor(Color.parseColor("#888888"))
+            setBackgroundColor(Color.parseColor("#2C2C2C"))
+            setPadding(24, 20, 24, 20)
         }
 
-        // Input PIN Pairing 4 Digit
+        // Input PIN 4 Digit
         tokenInput = EditText(this).apply {
             hint = "Kode Pairing 4 Digit"
             textSize = 16f
             setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
-            setBackgroundColor(Color.parseColor("#222222"))
-            setPadding(20, 16, 20, 16)
+            setHintTextColor(Color.parseColor("#888888"))
+            setBackgroundColor(Color.parseColor("#2C2C2C"))
+            setPadding(24, 20, 24, 20)
         }
 
-        // Label Pengaturan Kualitas
-        val qualityLabel = TextView(this).apply {
-            text = "Kualitas Kompresi Gambar:"
-            textSize = 14f
-            setTextColor(Color.LTGRAY)
+        // Label & Spinner Resolusi/Skala
+        val resLabel = TextView(this).apply {
+            text = "Resolusi / Target Sisi Panjang:"
+            textSize = 13f
+            setTextColor(Color.parseColor("#CCCCCC"))
             setPadding(0, 12, 0, 4)
         }
-        
-        qualitySpinner = Spinner(this).apply {
-            val qualities = arrayOf("Rendah (Ringan / Cepat)", "Sedang (Seimbang)", "Tinggi (Tajam)")
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, qualities)
-            setSelection(1) // Default: Sedang
+        resolutionSpinner = Spinner(this).apply {
+            val resOptions = arrayOf("1280p (Sangat Ringan)", "1600p (Standar / Default)", "1920p (Tajam / Berat)")
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, resOptions)
+            setSelection(1)
         }
 
-        // Label Pengaturan FPS
+        // Label & Spinner Kualitas Gambar
+        val qualityLabel = TextView(this).apply {
+            text = "Kualitas Kompresi JPEG:"
+            textSize = 13f
+            setTextColor(Color.parseColor("#CCCCCC"))
+            setPadding(0, 12, 0, 4)
+        }
+        qualitySpinner = Spinner(this).apply {
+            val qualities = arrayOf("Rendah - 50% (Super Cepat)", "Sedang - 75% (Seimbang)", "Tinggi - 90% (Tajam)")
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, qualities)
+            setSelection(1)
+        }
+
+        // Label & Spinner FPS
         val fpsLabel = TextView(this).apply {
             text = "Target Frame Rate (FPS):"
-            textSize = 14f
-            setTextColor(Color.LTGRAY)
+            textSize = 13f
+            setTextColor(Color.parseColor("#CCCCCC"))
             setPadding(0, 12, 0, 4)
         }
-
         fpsSpinner = Spinner(this).apply {
-            val fpsOptions = arrayOf("30 FPS (Stabil untuk Tablet Lawas)", "60 FPS (Mulus)")
+            val fpsOptions = arrayOf("30 FPS (Stabil untuk Tablet Lawas)", "60 FPS (Mulus / Responsif)")
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, fpsOptions)
-            setSelection(0) // Default: 30 FPS agar ringan di tablet P601
+            setSelection(0)
         }
 
         val connectBtn = Button(this).apply {
             text = "CONNECT KE LAYAR HP"
             textSize = 16f
+            setPadding(24, 24, 24, 24)
             setOnClickListener { connectToHost() }
         }
 
         statusText = TextView(this).apply {
             text = "Siap menghubungkan..."
             textSize = 14f
-            setTextColor(Color.LTGRAY)
+            setTextColor(Color.parseColor("#FFB74D"))
             gravity = Gravity.CENTER
             setPadding(0, 16, 0, 0)
         }
 
-        val spacer1 = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 12) }
-        val spacer2 = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 12) }
-        val spacer3 = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 16) }
+        val space = { height: Int -> View(this).apply { layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height) } }
 
         connectPanel.addView(titleText)
         connectPanel.addView(ipInput)
-        connectPanel.addView(spacer1)
+        connectPanel.addView(space(12))
         connectPanel.addView(tokenInput)
+        connectPanel.addView(resLabel)
+        connectPanel.addView(resolutionSpinner)
         connectPanel.addView(qualityLabel)
         connectPanel.addView(qualitySpinner)
         connectPanel.addView(fpsLabel)
         connectPanel.addView(fpsSpinner)
-        connectPanel.addView(spacer2)
+        connectPanel.addView(space(16))
         connectPanel.addView(connectBtn)
         connectPanel.addView(statusText)
+
+        scrollView.addView(connectPanel, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
 
         root.addView(displayView, FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ))
-        root.addView(connectPanel, FrameLayout.LayoutParams(
+        root.addView(scrollView, FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ))
 
         setContentView(root)
-
-        // Muat Riwayat IP dan Token Terakhir (Auto-Save)
         loadConnectionPrefs()
     }
 
@@ -199,10 +226,7 @@ class MainActivity : Activity() {
     }
 
     private fun connectToHost() {
-        val host = ipInput.text.toString().trim()
-            .removePrefix("ws://")
-            .removePrefix("http://")
-            .trimEnd('/')
+        val host = ipInput.text.toString().trim().removePrefix("ws://").removePrefix("http://").trimEnd('/')
         val token = tokenInput.text.toString().trim()
         
         if (host.isBlank() || token.isBlank()) {
@@ -210,9 +234,7 @@ class MainActivity : Activity() {
             return
         }
 
-        // Simpan otomatis IP dan PIN terakhir
         saveConnectionPrefs(host, token)
-
         closeSocket()
         authenticated = false
         statusText.text = "Menghubungkan ke $host:8080 ..."
@@ -221,25 +243,29 @@ class MainActivity : Activity() {
             return
         }
 
-        // Ambil nilai pengaturan kualitas & FPS yang dipilih user
+        val selectedRes = when (resolutionSpinner.selectedItemPosition) {
+            0 -> 1280
+            2 -> 1920
+            else -> 1600
+        }
         val selectedQuality = when (qualitySpinner.selectedItemPosition) {
-            0 -> 50  // Rendah
-            2 -> 90  // Tinggi
-            else -> 75 // Sedang
+            0 -> 50
+            2 -> 90
+            else -> 75
         }
         val selectedFps = if (fpsSpinner.selectedItemPosition == 1) 60 else 30
 
         val newSocket = object : WebSocketClient(uri) {
             override fun onOpen(handshakedata: ServerHandshake?) {
                 try {
-                    // Kirim auth beserta parameter kualitas dan fps pilihan user ke Host
                     val authJson = JSONObject()
                         .put("type", "auth")
                         .put("token", token)
+                        .put("resolution", selectedRes)
                         .put("quality", selectedQuality)
                         .put("fps", selectedFps)
                     send(authJson.toString())
-                    runOnUiThread { statusText.text = "Terhubung. Memverifikasi kode pairing..." }
+                    runOnUiThread { statusText.text = "Terhubung. Memverifikasi..." }
                 } catch (_: Exception) { }
             }
 
@@ -251,11 +277,11 @@ class MainActivity : Activity() {
                         "auth_ok" -> runOnUiThread {
                             if (isFinishing || isDestroyed) return@runOnUiThread
                             authenticated = true
-                            connectPanel.visibility = View.GONE
+                            scrollViewGone() // Sembunyikan panel
                             displayView.visibility = View.VISIBLE
                             displayView.requestFocus()
                             applyImmersiveMode()
-                            Toast.makeText(this@MainActivity, "Tersambung! Gunakan S-Pen", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, "Tersambung!", Toast.LENGTH_SHORT).show()
                         }
                         "error" -> runOnUiThread {
                             statusText.text = json.optString("message", "Pairing gagal")
@@ -271,11 +297,7 @@ class MainActivity : Activity() {
                 try {
                     val data = ByteArray(bytes.remaining())
                     bytes.get(data)
-                    val opts = BitmapFactory.Options().apply {
-                        inSampleSize = 1
-                        inPreferredConfig = Bitmap.Config.ARGB_8888
-                    }
-                    val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size, opts)
+                    val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
                     if (bitmap == null) {
                         isRendering.set(false)
                         return
@@ -303,7 +325,7 @@ class MainActivity : Activity() {
             }
 
             override fun onError(ex: Exception?) {
-                runOnUiThread { showDisconnected("Gagal terhubung: ${ex?.localizedMessage ?: "error WebSocket"}") }
+                runOnUiThread { showDisconnected("Gagal terhubung: ${ex?.localizedMessage ?: "error"}") }
             }
         }
         socket = newSocket
@@ -311,11 +333,16 @@ class MainActivity : Activity() {
         newSocket.connect()
     }
 
+    private fun scrollViewGone() {
+        // Sembunyikan panel form koneksi lewat parent view-nya
+        connectPanel.parent?.let { (it as View).visibility = View.GONE }
+    }
+
     private fun showDisconnected(message: String) {
         if (isFinishing || isDestroyed) return
         authenticated = false
         displayView.visibility = View.GONE
-        connectPanel.visibility = View.VISIBLE
+        connectPanel.parent?.let { (it as View).visibility = View.VISIBLE }
         statusText.text = message
     }
 
