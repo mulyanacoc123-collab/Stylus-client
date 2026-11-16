@@ -66,19 +66,31 @@ class StylusDisplayView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        // Pastikan rect sudah terhitung agar sentuhan tidak diabaikan
+        if (imageRect.isEmpty) {
+            val w = width.toFloat()
+            val h = height.toFloat()
+            if (w > 0f && h > 0f) {
+                imageRect.set(0f, 0f, w, h)
+            } else {
+                return true
+            }
+        }
+
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 beginIfStylus(event, event.actionIndex)
                 return true
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
-                if (activePointerId == MotionEvent.INVALID_POINTER_ID) beginIfStylus(event, event.actionIndex)
+                if (activePointerId == MotionEvent.INVALID_POINTER_ID) {
+                    beginIfStylus(event, event.actionIndex)
+                }
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
                 val index = event.findPointerIndex(activePointerId)
                 if (index >= 0) {
-                    if (event.getToolType(index) != MotionEvent.TOOL_TYPE_STYLUS) return true
                     for (history in 0 until event.historySize) {
                         sendPoint(
                             "move",
@@ -94,9 +106,7 @@ class StylusDisplayView @JvmOverloads constructor(
             MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_UP -> {
                 val index = event.actionIndex
                 if (event.getPointerId(index) == activePointerId) {
-                    if (event.getToolType(index) == MotionEvent.TOOL_TYPE_STYLUS) {
-                        sendPoint("up", event.getX(index), event.getY(index), event.getPressure(index))
-                    }
+                    sendPoint("up", event.getX(index), event.getY(index), event.getPressure(index))
                     activePointerId = MotionEvent.INVALID_POINTER_ID
                 }
                 return true
@@ -104,7 +114,9 @@ class StylusDisplayView @JvmOverloads constructor(
             MotionEvent.ACTION_CANCEL -> {
                 if (activePointerId != MotionEvent.INVALID_POINTER_ID) {
                     val index = event.findPointerIndex(activePointerId)
-                    if (index >= 0) sendPoint("cancel", event.getX(index), event.getY(index), event.getPressure(index))
+                    if (index >= 0) {
+                        sendPoint("cancel", event.getX(index), event.getY(index), event.getPressure(index))
+                    }
                     activePointerId = MotionEvent.INVALID_POINTER_ID
                 }
                 return true
@@ -114,20 +126,29 @@ class StylusDisplayView @JvmOverloads constructor(
     }
 
     private fun beginIfStylus(event: MotionEvent, index: Int) {
-        if (event.getToolType(index) != MotionEvent.TOOL_TYPE_STYLUS) return
-        if (frameBitmap == null || imageRect.isEmpty) return
         val x = event.getX(index)
         val y = event.getY(index)
-        if (!imageRect.contains(x, y)) return
+        
+        // Longgarkan validasi area jika imageRect masih kosong
+        if (!imageRect.isEmpty && !imageRect.contains(x, y)) return
+
         activePointerId = event.getPointerId(index)
         requestFocus()
         sendPoint("down", x, y, event.getPressure(index))
     }
 
     private fun sendPoint(action: String, px: Float, py: Float, pressure: Float) {
-        if (imageRect.width() <= 0f || imageRect.height() <= 0f) return
-        val normalizedX = ((px - imageRect.left) / imageRect.width()).coerceIn(0f, 1f)
-        val normalizedY = ((py - imageRect.top) / imageRect.height()).coerceIn(0f, 1f)
-        onStylusEvent?.invoke(action, normalizedX, normalizedY, pressure.coerceIn(0f, 1f))
+        val currentWidth = if (imageRect.width() > 0f) imageRect.width() else width.toFloat()
+        val currentHeight = if (imageRect.height() > 0f) imageRect.height() else height.toFloat()
+        if (currentWidth <= 0f || currentHeight <= 0f) return
+
+        val left = imageRect.left
+        val top = imageRect.top
+
+        val normalizedX = ((px - left) / currentWidth).coerceIn(0f, 1f)
+        val normalizedY = ((py - top) / currentHeight).coerceIn(0f, 1f)
+        
+        val finalPressure = if (pressure > 0f) pressure.coerceIn(0f, 1f) else 0.5f
+        onStylusEvent?.invoke(action, normalizedX, normalizedY, finalPressure)
     }
 }
