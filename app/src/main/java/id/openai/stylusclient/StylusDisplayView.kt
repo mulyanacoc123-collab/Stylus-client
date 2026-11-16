@@ -30,14 +30,23 @@ class StylusDisplayView @JvmOverloads constructor(
     fun setFrame(bitmap: Bitmap) {
         val old = frameBitmap
         frameBitmap = bitmap
-        if (old != null && old !== bitmap && !old.isRecycled) old.recycle()
         invalidate()
+        if (old != null && old !== bitmap && !old.isRecycled) {
+            postDelayed({
+                try {
+                    if (!old.isRecycled) old.recycle()
+                } catch (_: Exception) { }
+            }, 120)
+        }
     }
 
     fun clearFrame() {
-        frameBitmap?.let { if (!it.isRecycled) it.recycle() }
+        val old = frameBitmap
         frameBitmap = null
         invalidate()
+        if (old != null && old !== bitmap && !old.isRecycled) {
+            try { old.recycle() } catch (_: Exception) { }
+        }
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -51,7 +60,9 @@ class StylusDisplayView @JvmOverloads constructor(
         val left = (width - drawWidth) / 2f
         val top = (height - drawHeight) / 2f
         imageRect.set(left, top, left + drawWidth, top + drawHeight)
-        canvas.drawBitmap(bitmap, null, imageRect, imagePaint)
+        try {
+            canvas.drawBitmap(bitmap, null, imageRect, imagePaint)
+        } catch (_: Exception) { }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
