@@ -1,18 +1,22 @@
 package id.openai.stylusclient
 
+import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import org.java_websocket.client.WebSocketClient
 import org.java_websocket.handshake.ServerHandshake
 import org.json.JSONObject
@@ -20,7 +24,7 @@ import java.net.URI
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : Activity() {
     private lateinit var connectPanel: LinearLayout
     private lateinit var displayView: StylusDisplayView
     private lateinit var ipInput: EditText
@@ -33,7 +37,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Penangkap crash otomatis untuk Android 7
         val prefs = getSharedPreferences("crash_log", Context.MODE_PRIVATE)
         val lastCrash = prefs.getString("error", null)
         if (lastCrash != null) {
@@ -50,30 +53,96 @@ class MainActivity : AppCompatActivity() {
         }
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        setContentView(R.layout.activity_main)
 
-        connectPanel = findViewById(R.id.connectPanel)
-        displayView = findViewById(R.id.displayView)
-        ipInput = findViewById(R.id.ipInput)
-        tokenInput = findViewById(R.id.tokenInput)
-        statusText = findViewById(R.id.statusText)
+        // Bangun antarmuka murni tanpa XML & tanpa AppCompat agar 100% stabil di LineageOS 7
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(Color.parseColor("#121212"))
+        }
 
-        // Matikan hardware acceleration khusus pada view gambar jika GPU Android 7 bermasalah
-        displayView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-
-        displayView.onStylusEvent = { action, x, y, pressure ->
-            if (authenticated) {
-                val message = JSONObject()
-                    .put("type", "touch")
-                    .put("action", action)
-                    .put("x", x.toDouble())
-                    .put("y", y.toDouble())
-                    .put("pressure", pressure.toDouble())
-                try { socket?.send(message.toString()) } catch (_: Exception) { }
+        displayView = StylusDisplayView(this).apply {
+            visibility = View.GONE
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+            onStylusEvent = { action, x, y, pressure ->
+                if (authenticated) {
+                    val message = JSONObject()
+                        .put("type", "touch")
+                        .put("action", action)
+                        .put("x", x.toDouble())
+                        .put("y", y.toDouble())
+                        .put("pressure", pressure.toDouble())
+                    try { socket?.send(message.toString()) } catch (_: Exception) { }
+                }
             }
         }
 
-        findViewById<Button>(R.id.connectButton).setOnClickListener { connectToHost() }
+        connectPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(64, 32, 64, 32)
+        }
+
+        val titleText = TextView(this).apply {
+            text = "StylusClient - Note 10.1 P601"
+            textSize = 22f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, 24)
+        }
+
+        ipInput = EditText(this).apply {
+            hint = "IP Hotspot HP (contoh: 192.168.43.144)"
+            setText("192.168.43.144")
+            textSize = 18f
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            setBackgroundColor(Color.parseColor("#222222"))
+            setPadding(24, 20, 24, 20)
+        }
+
+        tokenInput = EditText(this).apply {
+            hint = "Kode Pairing 8 Digit"
+            textSize = 18f
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            setBackgroundColor(Color.parseColor("#222222"))
+            setPadding(24, 20, 24, 20)
+        }
+
+        val connectBtn = Button(this).apply {
+            text = "CONNECT KE LAYAR HP"
+            textSize = 18f
+            setOnClickListener { connectToHost() }
+        }
+
+        statusText = TextView(this).apply {
+            text = "Siap menghubungkan..."
+            textSize = 15f
+            setTextColor(Color.LTGRAY)
+            gravity = Gravity.CENTER
+            setPadding(0, 24, 0, 0)
+        }
+
+        val spacer1 = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 16) }
+        val spacer2 = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 24) }
+
+        connectPanel.addView(titleText)
+        connectPanel.addView(ipInput)
+        connectPanel.addView(spacer1)
+        connectPanel.addView(tokenInput)
+        connectPanel.addView(spacer2)
+        connectPanel.addView(connectBtn)
+        connectPanel.addView(statusText)
+
+        root.addView(displayView, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+        root.addView(connectPanel, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+
+        setContentView(root)
     }
 
     private fun connectToHost() {
@@ -115,7 +184,7 @@ class MainActivity : AppCompatActivity() {
                             displayView.visibility = View.VISIBLE
                             displayView.requestFocus()
                             applyImmersiveMode()
-                            Toast.makeText(this@MainActivity, "StylusClient tersambung", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, "Tersambung! Gunakan S-Pen", Toast.LENGTH_SHORT).show()
                         }
                         "error" -> runOnUiThread {
                             statusText.text = json.optString("message", "Pairing gagal")
