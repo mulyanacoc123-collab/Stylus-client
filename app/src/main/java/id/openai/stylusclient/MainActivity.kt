@@ -11,10 +11,12 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import org.java_websocket.client.WebSocketClient
@@ -29,6 +31,8 @@ class MainActivity : Activity() {
     private lateinit var displayView: StylusDisplayView
     private lateinit var ipInput: EditText
     private lateinit var tokenInput: EditText
+    private lateinit var qualitySpinner: Spinner
+    private lateinit var fpsSpinner: Spinner
     private lateinit var statusText: TextView
     private var socket: WebSocketClient? = null
     @Volatile private var authenticated = false
@@ -54,14 +58,13 @@ class MainActivity : Activity() {
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
 
-        // Bangun antarmuka murni tanpa XML & tanpa AppCompat agar 100% stabil di LineageOS 7
+        // Root Layout
         val root = FrameLayout(this).apply {
             setBackgroundColor(Color.parseColor("#121212"))
         }
 
         displayView = StylusDisplayView(this).apply {
             visibility = View.GONE
-            
             onStylusEvent = { action, x, y, pressure ->
                 if (authenticated) {
                     val message = JSONObject()
@@ -78,57 +81,91 @@ class MainActivity : Activity() {
         connectPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(64, 32, 64, 32)
+            setPadding(64, 24, 64, 24)
         }
 
         val titleText = TextView(this).apply {
             text = "StylusClient - Note 10.1 P601"
-            textSize = 22f
+            textSize = 20f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 24)
+            setPadding(0, 0, 0, 16)
         }
 
+        // Input IP Hotspot
         ipInput = EditText(this).apply {
-            hint = "IP Hotspot HP (contoh: 192.168.43.144)"
-            setText("192.168.43.144")
-            textSize = 18f
+            hint = "IP Hotspot HP (contoh: 192.168.43.1)"
+            textSize = 16f
             setTextColor(Color.WHITE)
             setHintTextColor(Color.GRAY)
             setBackgroundColor(Color.parseColor("#222222"))
-            setPadding(24, 20, 24, 20)
+            setPadding(20, 16, 20, 16)
         }
 
+        // Input PIN Pairing 4 Digit
         tokenInput = EditText(this).apply {
-            hint = "Kode Pairing 8 Digit"
-            textSize = 18f
+            hint = "Kode Pairing 4 Digit"
+            textSize = 16f
             setTextColor(Color.WHITE)
             setHintTextColor(Color.GRAY)
             setBackgroundColor(Color.parseColor("#222222"))
-            setPadding(24, 20, 24, 20)
+            setPadding(20, 16, 20, 16)
+        }
+
+        // Label Pengaturan Kualitas
+        val qualityLabel = TextView(this).apply {
+            text = "Kualitas Kompresi Gambar:"
+            textSize = 14f
+            setTextColor(Color.LTGRAY)
+            setPadding(0, 12, 0, 4)
+        }
+        
+        qualitySpinner = Spinner(this).apply {
+            val qualities = arrayOf("Rendah (Ringan / Cepat)", "Sedang (Seimbang)", "Tinggi (Tajam)")
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, qualities)
+            setSelection(1) // Default: Sedang
+        }
+
+        // Label Pengaturan FPS
+        val fpsLabel = TextView(this).apply {
+            text = "Target Frame Rate (FPS):"
+            textSize = 14f
+            setTextColor(Color.LTGRAY)
+            setPadding(0, 12, 0, 4)
+        }
+
+        fpsSpinner = Spinner(this).apply {
+            val fpsOptions = arrayOf("30 FPS (Stabil untuk Tablet Lawas)", "60 FPS (Mulus)")
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, fpsOptions)
+            setSelection(0) // Default: 30 FPS agar ringan di tablet P601
         }
 
         val connectBtn = Button(this).apply {
             text = "CONNECT KE LAYAR HP"
-            textSize = 18f
+            textSize = 16f
             setOnClickListener { connectToHost() }
         }
 
         statusText = TextView(this).apply {
             text = "Siap menghubungkan..."
-            textSize = 15f
+            textSize = 14f
             setTextColor(Color.LTGRAY)
             gravity = Gravity.CENTER
-            setPadding(0, 24, 0, 0)
+            setPadding(0, 16, 0, 0)
         }
 
-        val spacer1 = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 16) }
-        val spacer2 = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 24) }
+        val spacer1 = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 12) }
+        val spacer2 = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 12) }
+        val spacer3 = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 16) }
 
         connectPanel.addView(titleText)
         connectPanel.addView(ipInput)
         connectPanel.addView(spacer1)
         connectPanel.addView(tokenInput)
+        connectPanel.addView(qualityLabel)
+        connectPanel.addView(qualitySpinner)
+        connectPanel.addView(fpsLabel)
+        connectPanel.addView(fpsSpinner)
         connectPanel.addView(spacer2)
         connectPanel.addView(connectBtn)
         connectPanel.addView(statusText)
@@ -143,6 +180,22 @@ class MainActivity : Activity() {
         ))
 
         setContentView(root)
+
+        // Muat Riwayat IP dan Token Terakhir (Auto-Save)
+        loadConnectionPrefs()
+    }
+
+    private fun saveConnectionPrefs(ip: String, token: String) {
+        getSharedPreferences("stylus_client_prefs", Context.MODE_PRIVATE).edit()
+            .putString("last_ip", ip)
+            .putString("last_token", token)
+            .apply()
+    }
+
+    private fun loadConnectionPrefs() {
+        val prefs = getSharedPreferences("stylus_client_prefs", Context.MODE_PRIVATE)
+        ipInput.setText(prefs.getString("last_ip", "192.168.43.1"))
+        tokenInput.setText(prefs.getString("last_token", ""))
     }
 
     private fun connectToHost() {
@@ -151,10 +204,14 @@ class MainActivity : Activity() {
             .removePrefix("http://")
             .trimEnd('/')
         val token = tokenInput.text.toString().trim()
+        
         if (host.isBlank() || token.isBlank()) {
-            statusText.text = "Isi IP HP dan kode pairing terlebih dahulu."
+            statusText.text = "Isi IP HP dan kode pairing 4 digit terlebih dahulu."
             return
         }
+
+        // Simpan otomatis IP dan PIN terakhir
+        saveConnectionPrefs(host, token)
 
         closeSocket()
         authenticated = false
@@ -164,10 +221,24 @@ class MainActivity : Activity() {
             return
         }
 
+        // Ambil nilai pengaturan kualitas & FPS yang dipilih user
+        val selectedQuality = when (qualitySpinner.selectedItemPosition) {
+            0 -> 50  // Rendah
+            2 -> 90  // Tinggi
+            else -> 75 // Sedang
+        }
+        val selectedFps = if (fpsSpinner.selectedItemPosition == 1) 60 else 30
+
         val newSocket = object : WebSocketClient(uri) {
             override fun onOpen(handshakedata: ServerHandshake?) {
                 try {
-                    send(JSONObject().put("type", "auth").put("token", token).toString())
+                    // Kirim auth beserta parameter kualitas dan fps pilihan user ke Host
+                    val authJson = JSONObject()
+                        .put("type", "auth")
+                        .put("token", token)
+                        .put("quality", selectedQuality)
+                        .put("fps", selectedFps)
+                    send(authJson.toString())
                     runOnUiThread { statusText.text = "Terhubung. Memverifikasi kode pairing..." }
                 } catch (_: Exception) { }
             }
