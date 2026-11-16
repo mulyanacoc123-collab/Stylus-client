@@ -1,5 +1,7 @@
 package id.openai.stylusclient
 
+import android.app.AlertDialog
+import android.content.Context
 import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -30,6 +32,23 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Penangkap crash otomatis untuk Android 7
+        val prefs = getSharedPreferences("crash_log", Context.MODE_PRIVATE)
+        val lastCrash = prefs.getString("error", null)
+        if (lastCrash != null) {
+            prefs.edit().remove("error").apply()
+            AlertDialog.Builder(this)
+                .setTitle("Info Error Sebelumnya")
+                .setMessage(lastCrash)
+                .setPositiveButton("OK", null)
+                .show()
+        }
+        Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
+            prefs.edit().putString("error", throwable.stackTraceToString().take(800)).commit()
+            android.os.Process.killProcess(android.os.Process.myPid())
+        }
+
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         setContentView(R.layout.activity_main)
 
@@ -38,6 +57,9 @@ class MainActivity : AppCompatActivity() {
         ipInput = findViewById(R.id.ipInput)
         tokenInput = findViewById(R.id.tokenInput)
         statusText = findViewById(R.id.statusText)
+
+        // Matikan hardware acceleration khusus pada view gambar jika GPU Android 7 bermasalah
+        displayView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
 
         displayView.onStylusEvent = { action, x, y, pressure ->
             if (authenticated) {
@@ -110,7 +132,8 @@ class MainActivity : AppCompatActivity() {
                     val data = ByteArray(bytes.remaining())
                     bytes.get(data)
                     val opts = BitmapFactory.Options().apply {
-                        inPreferredConfig = Bitmap.Config.RGB_565
+                        inSampleSize = 2
+                        inPreferredConfig = Bitmap.Config.ARGB_8888
                     }
                     val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size, opts)
                     if (bitmap == null) {
