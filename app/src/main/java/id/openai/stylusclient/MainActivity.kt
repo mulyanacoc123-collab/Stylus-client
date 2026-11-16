@@ -61,7 +61,7 @@ class MainActivity : Activity() {
 
         displayView = StylusDisplayView(this).apply {
             visibility = View.GONE
-            setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+            
             onStylusEvent = { action, x, y, pressure ->
                 if (authenticated) {
                     val message = JSONObject()
