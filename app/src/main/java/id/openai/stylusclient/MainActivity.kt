@@ -201,7 +201,7 @@ class MainActivity : Activity() {
                     val data = ByteArray(bytes.remaining())
                     bytes.get(data)
                     val opts = BitmapFactory.Options().apply {
-                        inSampleSize = 2
+                        inSampleSize = 1
                         inPreferredConfig = Bitmap.Config.ARGB_8888
                     }
                     val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size, opts)
