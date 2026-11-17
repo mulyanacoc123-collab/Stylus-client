@@ -343,4 +343,53 @@ class MainActivity : Activity() {
             }
 
             override fun onClose(code: Int, reason: String?, remote: Boolean) {
-                runOnUiThread { showDisconnected("Koneksi terput
+                runOnUiThread { showDisconnected("Koneksi terputus: ${reason.orEmpty()}") }
+            }
+
+            override fun onError(ex: Exception?) {
+                runOnUiThread { showDisconnected("Gagal terhubung: ${ex?.localizedMessage ?: "error"}") }
+            }
+        }
+        socket = newSocket
+        newSocket.connectionLostTimeout = 15
+        newSocket.connect()
+    }
+
+    private fun showDisconnected(message: String) {
+        if (isFinishing || isDestroyed) return
+        authenticated = false
+        displayView.visibility = View.GONE
+        connectPanel.parent?.let { (it as View).visibility = View.VISIBLE }
+        statusText.text = message
+    }
+
+    private fun closeSocket() {
+        authenticated = false
+        try { socket?.close() } catch (_: Exception) { }
+        socket = null
+    }
+
+    private fun applyImmersiveMode() {
+        if (!authenticated) return
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility = (
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                View.SYSTEM_UI_FLAG_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            )
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) applyImmersiveMode()
+    }
+
+    override fun onDestroy() {
+        closeSocket()
+        try { displayView.clearFrame() } catch (_: Exception) { }
+        super.onDestroy()
+    }
+}
