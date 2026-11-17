@@ -16,7 +16,6 @@ class StylusDisplayView @JvmOverloads constructor(
     attrs: AttributeSet? = null
 ) : View(context, attrs) {
     
-    // Deklarasi callback stylus event yang diakses oleh MainActivity
     var onStylusEvent: ((action: String, x: Float, y: Float, pressure: Float) -> Unit)? = null
     
     private var frameBitmap: Bitmap? = null
