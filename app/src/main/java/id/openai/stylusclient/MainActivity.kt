@@ -39,6 +39,9 @@ class MainActivity : Activity() {
     private var socket: WebSocketClient? = null
     @Volatile private var authenticated = false
     private val isRendering = AtomicBoolean(false)
+    
+    // Variabel untuk pembatas kecepatan kirim sentuh (Touch Throttling) agar tidak antre
+    private var lastTouchSendTime = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,7 +61,6 @@ class MainActivity : Activity() {
             android.os.Process.killProcess(android.os.Process.myPid())
         }
 
-        // Dikunci Landscape agar akurasi S-Pen/Stylus tetap presisi 1:1 tanpa distorsi sumbu
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
 
         val root = FrameLayout(this).apply {
@@ -69,6 +71,16 @@ class MainActivity : Activity() {
             visibility = View.GONE
             onStylusEvent = { action, x, y, pressure ->
                 if (authenticated) {
+                    val now = System.currentTimeMillis()
+                    // Throttling event sentuh gerakan (ACTION_MOVE) maksimal tiap 8ms ~ 120Hz agar tidak membanjiri antrean
+                    if (action == "MOVE" && now - lastTouchSendTime < 8) {
+                        // Lewati event yang terlalu rapat untuk memangkas delay
+                        return@onStylusEvent
+                    }
+                    if (action == "MOVE") {
+                        lastTouchSendTime = now
+                    }
+
                     val message = JSONObject()
                         .put("type", "touch")
                         .put("action", action)
@@ -88,7 +100,6 @@ class MainActivity : Activity() {
             isFillViewport = true
         }
 
-        // Panel dengan warna latar lebih kontras agar tidak menyatu dengan huruf
         connectPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -104,7 +115,6 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, 20)
         }
 
-        // Input IP dengan background jelas dan teks putih terang
         ipInput = EditText(this).apply {
             hint = "IP Hotspot HP (contoh: 192.168.43.1)"
             textSize = 16f
@@ -114,7 +124,6 @@ class MainActivity : Activity() {
             setPadding(24, 20, 24, 20)
         }
 
-        // Input Token / PIN 4 Digit
         tokenInput = EditText(this).apply {
             hint = "Kode Pairing 4 Digit"
             textSize = 16f
@@ -124,7 +133,7 @@ class MainActivity : Activity() {
             setPadding(24, 20, 24, 20)
         }
 
-        // Label & Spinner Resolusi
+        // Pilihan Resolusi Super Fleksibel dari Tertinggi hingga 360p
         val resLabel = TextView(this).apply {
             text = "Resolusi / Skala Tangkapan Sisi Panjang:"
             textSize = 13f
@@ -132,12 +141,19 @@ class MainActivity : Activity() {
             setPadding(0, 16, 0, 6)
         }
         resolutionSpinner = Spinner(this).apply {
-            val resOptions = arrayOf("1280p (Sangat Ringan / Cepat)", "1600p (Standar / Default)", "1920p (Tajam / Berat)")
+            val resOptions = arrayOf(
+                "1920p (Tajam / Berat)",
+                "1600p (Standar)",
+                "1280p (HD Seimbang)",
+                "960p (Ringan)",
+                "720p (Sangat Ringan)",
+                "480p (Ekstrem Cepat)",
+                "360p (Ultra Low Latency)"
+            )
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, resOptions)
-            setSelection(1)
+            setSelection(4) // Default diset ke 720p agar enteng di tablet lawas
         }
 
-        // Label & Spinner Kualitas JPEG
         val qualityLabel = TextView(this).apply {
             text = "Kualitas Kompresi JPEG:"
             textSize = 13f
@@ -145,12 +161,11 @@ class MainActivity : Activity() {
             setPadding(0, 16, 0, 6)
         }
         qualitySpinner = Spinner(this).apply {
-            val qualities = arrayOf("Rendah - 50% (Super Cepat / Minim Delay)", "Sedang - 75% (Seimbang)", "Tinggi - 90% (Tajam)")
+            val qualities = arrayOf("Rendah - 40% (Super Cepat)", "Sedang - 60% (Seimbang)", "Tinggi - 80% (Tajam)")
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, qualities)
-            setSelection(1)
+            setSelection(0) // Default Rendah untuk meminimalkan ukuran paket data
         }
 
-        // Label & Spinner FPS
         val fpsLabel = TextView(this).apply {
             text = "Target Frame Rate (FPS):"
             textSize = 13f
@@ -158,7 +173,7 @@ class MainActivity : Activity() {
             setPadding(0, 16, 0, 6)
         }
         fpsSpinner = Spinner(this).apply {
-            val fpsOptions = arrayOf("30 FPS (Stabil untuk Tablet Lawas)", "60 FPS (Mulus / Responsif)")
+            val fpsOptions = arrayOf("30 FPS (Stabil)", "60 FPS (Mulus)")
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, fpsOptions)
             setSelection(0)
         }
@@ -243,16 +258,24 @@ class MainActivity : Activity() {
             return
         }
 
+        // Pemetaan Resolusi Sisi Panjang
         val selectedRes = when (resolutionSpinner.selectedItemPosition) {
-            0 -> 1280
-            2 -> 1920
-            else -> 1600
+            0 -> 1920
+            1 -> 1600
+            2 -> 1280
+            3 -> 960
+            4 -> 720
+            5 -> 480
+            else -> 360
         }
+
+        // Pemetaan Kualitas JPEG
         val selectedQuality = when (qualitySpinner.selectedItemPosition) {
-            0 -> 50
-            2 -> 90
-            else -> 75
+            0 -> 40
+            1 -> 60
+            else -> 80
         }
+
         val selectedFps = if (fpsSpinner.selectedItemPosition == 1) 60 else 30
 
         val newSocket = object : WebSocketClient(uri) {
@@ -321,7 +344,7 @@ class MainActivity : Activity() {
             }
 
             override fun onClose(code: Int, reason: String?, remote: Boolean) {
-                runOnUiThread { showDisconnected("Koneksi terputus: ${reason.orEmpty()}") }
+                runOnUiThread { showDisconnected("Koneksi terputus: ${reason.orEmpty()}")}
             }
 
             override fun onError(ex: Exception?) {
