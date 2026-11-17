@@ -58,8 +58,8 @@ class MainActivity : Activity() {
             android.os.Process.killProcess(android.os.Process.myPid())
         }
 
-        // Rotasi fleksibel mengikuti orientasi perangkat user
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        // Dikunci Landscape agar akurasi S-Pen/Stylus tetap presisi 1:1 tanpa distorsi sumbu
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
 
         val root = FrameLayout(this).apply {
             setBackgroundColor(Color.parseColor("#121212"))
@@ -80,7 +80,6 @@ class MainActivity : Activity() {
             }
         }
 
-        // Bungkus dengan ScrollView agar tidak terpotong di layar tablet kecil/menengah
         val scrollView = ScrollView(this).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -89,63 +88,64 @@ class MainActivity : Activity() {
             isFillViewport = true
         }
 
+        // Panel dengan warna latar lebih kontras agar tidak menyatu dengan huruf
         connectPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(48, 24, 48, 24)
-            setBackgroundColor(Color.parseColor("#1E1E1E")) // Latar agak terang agar kontras
+            setPadding(64, 32, 64, 32)
+            setBackgroundColor(Color.parseColor("#1E1E1E"))
         }
 
         val titleText = TextView(this).apply {
-            text = "StylusClient - Pengaturan & Koneksi"
-            textSize = 18f
-            setTextColor(Color.parseColor("#E0E0E0"))
+            text = "StylusClient - Galaxy Note 10.1 P601"
+            textSize = 20f
+            setTextColor(Color.parseColor("#FFFFFF"))
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 16)
+            setPadding(0, 0, 0, 20)
         }
 
-        // Input IP Hotspot dengan teks putih dan background kontras
+        // Input IP dengan background jelas dan teks putih terang
         ipInput = EditText(this).apply {
             hint = "IP Hotspot HP (contoh: 192.168.43.1)"
             textSize = 16f
             setTextColor(Color.WHITE)
-            setHintTextColor(Color.parseColor("#888888"))
+            setHintTextColor(Color.parseColor("#9E9E9E"))
             setBackgroundColor(Color.parseColor("#2C2C2C"))
             setPadding(24, 20, 24, 20)
         }
 
-        // Input PIN 4 Digit
+        // Input Token / PIN 4 Digit
         tokenInput = EditText(this).apply {
             hint = "Kode Pairing 4 Digit"
             textSize = 16f
             setTextColor(Color.WHITE)
-            setHintTextColor(Color.parseColor("#888888"))
+            setHintTextColor(Color.parseColor("#9E9E9E"))
             setBackgroundColor(Color.parseColor("#2C2C2C"))
             setPadding(24, 20, 24, 20)
         }
 
-        // Label & Spinner Resolusi/Skala
+        // Label & Spinner Resolusi
         val resLabel = TextView(this).apply {
-            text = "Resolusi / Target Sisi Panjang:"
+            text = "Resolusi / Skala Tangkapan Sisi Panjang:"
             textSize = 13f
-            setTextColor(Color.parseColor("#CCCCCC"))
-            setPadding(0, 12, 0, 4)
+            setTextColor(Color.parseColor("#E0E0E0"))
+            setPadding(0, 16, 0, 6)
         }
         resolutionSpinner = Spinner(this).apply {
-            val resOptions = arrayOf("1280p (Sangat Ringan)", "1600p (Standar / Default)", "1920p (Tajam / Berat)")
+            val resOptions = arrayOf("1280p (Sangat Ringan / Cepat)", "1600p (Standar / Default)", "1920p (Tajam / Berat)")
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, resOptions)
             setSelection(1)
         }
 
-        // Label & Spinner Kualitas Gambar
+        // Label & Spinner Kualitas JPEG
         val qualityLabel = TextView(this).apply {
             text = "Kualitas Kompresi JPEG:"
             textSize = 13f
-            setTextColor(Color.parseColor("#CCCCCC"))
-            setPadding(0, 12, 0, 4)
+            setTextColor(Color.parseColor("#E0E0E0"))
+            setPadding(0, 16, 0, 6)
         }
         qualitySpinner = Spinner(this).apply {
-            val qualities = arrayOf("Rendah - 50% (Super Cepat)", "Sedang - 75% (Seimbang)", "Tinggi - 90% (Tajam)")
+            val qualities = arrayOf("Rendah - 50% (Super Cepat / Minim Delay)", "Sedang - 75% (Seimbang)", "Tinggi - 90% (Tajam)")
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, qualities)
             setSelection(1)
         }
@@ -154,8 +154,8 @@ class MainActivity : Activity() {
         val fpsLabel = TextView(this).apply {
             text = "Target Frame Rate (FPS):"
             textSize = 13f
-            setTextColor(Color.parseColor("#CCCCCC"))
-            setPadding(0, 12, 0, 4)
+            setTextColor(Color.parseColor("#E0E0E0"))
+            setPadding(0, 16, 0, 6)
         }
         fpsSpinner = Spinner(this).apply {
             val fpsOptions = arrayOf("30 FPS (Stabil untuk Tablet Lawas)", "60 FPS (Mulus / Responsif)")
@@ -175,7 +175,7 @@ class MainActivity : Activity() {
             textSize = 14f
             setTextColor(Color.parseColor("#FFB74D"))
             gravity = Gravity.CENTER
-            setPadding(0, 16, 0, 0)
+            setPadding(0, 20, 0, 0)
         }
 
         val space = { height: Int -> View(this).apply { layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height) } }
@@ -190,7 +190,7 @@ class MainActivity : Activity() {
         connectPanel.addView(qualitySpinner)
         connectPanel.addView(fpsLabel)
         connectPanel.addView(fpsSpinner)
-        connectPanel.addView(space(16))
+        connectPanel.addView(space(20))
         connectPanel.addView(connectBtn)
         connectPanel.addView(statusText)
 
@@ -277,7 +277,7 @@ class MainActivity : Activity() {
                         "auth_ok" -> runOnUiThread {
                             if (isFinishing || isDestroyed) return@runOnUiThread
                             authenticated = true
-                            scrollViewGone() // Sembunyikan panel
+                            connectPanel.parent?.let { (it as View).visibility = View.GONE }
                             displayView.visibility = View.VISIBLE
                             displayView.requestFocus()
                             applyImmersiveMode()
@@ -331,11 +331,6 @@ class MainActivity : Activity() {
         socket = newSocket
         newSocket.connectionLostTimeout = 15
         newSocket.connect()
-    }
-
-    private fun scrollViewGone() {
-        // Sembunyikan panel form koneksi lewat parent view-nya
-        connectPanel.parent?.let { (it as View).visibility = View.GONE }
     }
 
     private fun showDisconnected(message: String) {
