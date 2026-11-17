@@ -15,7 +15,10 @@ class StylusDisplayView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : View(context, attrs) {
+    
+    // Deklarasi callback stylus event yang diakses oleh MainActivity
     var onStylusEvent: ((action: String, x: Float, y: Float, pressure: Float) -> Unit)? = null
+    
     private var frameBitmap: Bitmap? = null
     private val imageRect = RectF()
     private val imagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
@@ -66,7 +69,6 @@ class StylusDisplayView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        // Pastikan rect sudah terhitung agar sentuhan tidak diabaikan
         if (imageRect.isEmpty) {
             val w = width.toFloat()
             val h = height.toFloat()
@@ -93,20 +95,20 @@ class StylusDisplayView @JvmOverloads constructor(
                 if (index >= 0) {
                     for (history in 0 until event.historySize) {
                         sendPoint(
-                            "move",
+                            "MOVE",
                             event.getHistoricalX(index, history),
                             event.getHistoricalY(index, history),
                             event.getHistoricalPressure(index, history)
                         )
                     }
-                    sendPoint("move", event.getX(index), event.getY(index), event.getPressure(index))
+                    sendPoint("MOVE", event.getX(index), event.getY(index), event.getPressure(index))
                 }
                 return true
             }
             MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_UP -> {
                 val index = event.actionIndex
                 if (event.getPointerId(index) == activePointerId) {
-                    sendPoint("up", event.getX(index), event.getY(index), event.getPressure(index))
+                    sendPoint("UP", event.getX(index), event.getY(index), event.getPressure(index))
                     activePointerId = MotionEvent.INVALID_POINTER_ID
                 }
                 return true
@@ -115,7 +117,7 @@ class StylusDisplayView @JvmOverloads constructor(
                 if (activePointerId != MotionEvent.INVALID_POINTER_ID) {
                     val index = event.findPointerIndex(activePointerId)
                     if (index >= 0) {
-                        sendPoint("cancel", event.getX(index), event.getY(index), event.getPressure(index))
+                        sendPoint("CANCEL", event.getX(index), event.getY(index), event.getPressure(index))
                     }
                     activePointerId = MotionEvent.INVALID_POINTER_ID
                 }
@@ -129,12 +131,11 @@ class StylusDisplayView @JvmOverloads constructor(
         val x = event.getX(index)
         val y = event.getY(index)
         
-        // Longgarkan validasi area jika imageRect masih kosong
         if (!imageRect.isEmpty && !imageRect.contains(x, y)) return
 
         activePointerId = event.getPointerId(index)
         requestFocus()
-        sendPoint("down", x, y, event.getPressure(index))
+        sendPoint("DOWN", x, y, event.getPressure(index))
     }
 
     private fun sendPoint(action: String, px: Float, py: Float, pressure: Float) {
