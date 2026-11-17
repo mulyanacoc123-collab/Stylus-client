@@ -39,8 +39,6 @@ class MainActivity : Activity() {
     private var socket: WebSocketClient? = null
     @Volatile private var authenticated = false
     private val isRendering = AtomicBoolean(false)
-    
-    // Variabel untuk pembatas kecepatan kirim sentuh (Touch Throttling) agar tidak antre
     private var lastTouchSendTime = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,9 +70,7 @@ class MainActivity : Activity() {
             onStylusEvent = { action, x, y, pressure ->
                 if (authenticated) {
                     val now = System.currentTimeMillis()
-                    // Throttling event sentuh gerakan (ACTION_MOVE) maksimal tiap 8ms ~ 120Hz agar tidak membanjiri antrean
                     if (action == "MOVE" && now - lastTouchSendTime < 8) {
-                        // Lewati event yang terlalu rapat untuk memangkas delay
                         return@onStylusEvent
                     }
                     if (action == "MOVE") {
@@ -133,7 +129,6 @@ class MainActivity : Activity() {
             setPadding(24, 20, 24, 20)
         }
 
-        // Pilihan Resolusi Super Fleksibel dari Tertinggi hingga 360p
         val resLabel = TextView(this).apply {
             text = "Resolusi / Skala Tangkapan Sisi Panjang:"
             textSize = 13f
@@ -151,7 +146,7 @@ class MainActivity : Activity() {
                 "360p (Ultra Low Latency)"
             )
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, resOptions)
-            setSelection(4) // Default diset ke 720p agar enteng di tablet lawas
+            setSelection(4)
         }
 
         val qualityLabel = TextView(this).apply {
@@ -163,7 +158,7 @@ class MainActivity : Activity() {
         qualitySpinner = Spinner(this).apply {
             val qualities = arrayOf("Rendah - 40% (Super Cepat)", "Sedang - 60% (Seimbang)", "Tinggi - 80% (Tajam)")
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, qualities)
-            setSelection(0) // Default Rendah untuk meminimalkan ukuran paket data
+            setSelection(0)
         }
 
         val fpsLabel = TextView(this).apply {
@@ -258,7 +253,6 @@ class MainActivity : Activity() {
             return
         }
 
-        // Pemetaan Resolusi Sisi Panjang
         val selectedRes = when (resolutionSpinner.selectedItemPosition) {
             0 -> 1920
             1 -> 1600
@@ -269,7 +263,6 @@ class MainActivity : Activity() {
             else -> 360
         }
 
-        // Pemetaan Kualitas JPEG
         val selectedQuality = when (qualitySpinner.selectedItemPosition) {
             0 -> 40
             1 -> 60
@@ -344,7 +337,7 @@ class MainActivity : Activity() {
             }
 
             override fun onClose(code: Int, reason: String?, remote: Boolean) {
-                runOnUiThread { showDisconnected("Koneksi terputus: ${reason.orEmpty()}")}
+                runOnUiThread { showDisconnected("Koneksi terputus: ${reason.orEmpty()}") }
             }
 
             override fun onError(ex: Exception?) {
