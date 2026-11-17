@@ -70,20 +70,26 @@ class MainActivity : Activity() {
             onStylusEvent = { action, x, y, pressure ->
                 if (authenticated) {
                     val now = System.currentTimeMillis()
-                    if (action == "MOVE" && now - lastTouchSendTime < 8) {
-                        return@onStylusEvent
-                    }
-                    if (action == "MOVE") {
-                        lastTouchSendTime = now
+                    val allowSend = if (action == "MOVE") {
+                        if (now - lastTouchSendTime >= 8) {
+                            lastTouchSendTime = now
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        true
                     }
 
-                    val message = JSONObject()
-                        .put("type", "touch")
-                        .put("action", action)
-                        .put("x", x.toDouble())
-                        .put("y", y.toDouble())
-                        .put("pressure", pressure.toDouble())
-                    try { socket?.send(message.toString()) } catch (_: Exception) { }
+                    if (allowSend) {
+                        val message = JSONObject()
+                            .put("type", "touch")
+                            .put("action", action)
+                            .put("x", x.toDouble())
+                            .put("y", y.toDouble())
+                            .put("pressure", pressure.toDouble())
+                        try { socket?.send(message.toString()) } catch (_: Exception) { }
+                    }
                 }
             }
         }
@@ -337,53 +343,4 @@ class MainActivity : Activity() {
             }
 
             override fun onClose(code: Int, reason: String?, remote: Boolean) {
-                runOnUiThread { showDisconnected("Koneksi terputus: ${reason.orEmpty()}") }
-            }
-
-            override fun onError(ex: Exception?) {
-                runOnUiThread { showDisconnected("Gagal terhubung: ${ex?.localizedMessage ?: "error"}") }
-            }
-        }
-        socket = newSocket
-        newSocket.connectionLostTimeout = 15
-        newSocket.connect()
-    }
-
-    private fun showDisconnected(message: String) {
-        if (isFinishing || isDestroyed) return
-        authenticated = false
-        displayView.visibility = View.GONE
-        connectPanel.parent?.let { (it as View).visibility = View.VISIBLE }
-        statusText.text = message
-    }
-
-    private fun closeSocket() {
-        authenticated = false
-        try { socket?.close() } catch (_: Exception) { }
-        socket = null
-    }
-
-    private fun applyImmersiveMode() {
-        if (!authenticated) return
-        @Suppress("DEPRECATION")
-        window.decorView.systemUiVisibility = (
-            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
-                View.SYSTEM_UI_FLAG_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            )
-    }
-
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) applyImmersiveMode()
-    }
-
-    override fun onDestroy() {
-        closeSocket()
-        try { displayView.clearFrame() } catch (_: Exception) { }
-        super.onDestroy()
-    }
-}
+                runOnUiThread { showDisconnected("Koneksi terput
